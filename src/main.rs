@@ -69,23 +69,32 @@ fn main() {
                                         .help("Set operation mode to add or subtract the defined seconds to/from the timestamps `+/-`")
                                         .required(true)
                                         .takes_value(true))
+                                    .arg(Arg::new("output filename")
+                                        .short('o')
+                                        .long("out")
+                                        .value_name("OUTPUT FILE")
+                                        .help("Set the name of the output file after editing")
+                                        .required(false)
+                                        .default_value("out.srt")
+                                        .takes_value(true))
                                     .get_matches();
     
     let time_split = " --> ".to_string();
     let path = matches.value_of("file").unwrap();
     let time_shift_seconds = matches.value_of("seconds").unwrap().parse::<u32>().unwrap();
     let add_subtract: Operation = Operation::from_str(matches.value_of("mode").unwrap()).unwrap();
+    let out = matches.value_of("output filename").unwrap();
 
     let file = BufReader::new(File::open(path).unwrap());
     let mut output: String = "".to_string();
 
     for line in file.lines() {
         let l = line.unwrap();
-        let mut test = l.split(&time_split);
+        let mut split = l.split(&time_split);
         
         if l.contains(&time_split) {
-            let mut first: TimeStamp = TimeStamp::from_str(test.nth(0).unwrap()).unwrap();
-            let mut second: TimeStamp = TimeStamp::from_str(test.nth(0).unwrap()).unwrap();
+            let mut first: TimeStamp = TimeStamp::from_str(split.nth(0).unwrap()).unwrap();
+            let mut second: TimeStamp = TimeStamp::from_str(split.nth(0).unwrap()).unwrap();
 
             match add_subtract {
                 Operation::Plus => {
@@ -105,6 +114,6 @@ fn main() {
         }
     };
 
-    let mut write_file = File::create("out.srt").unwrap();
-    write_file.write_all(output.as_bytes()).expect("failed to write times to srt file");
+    let mut write_file = File::create(out).unwrap();
+    write_file.write_all(output.as_bytes()).expect("Failed to write times to srt file");
 }
