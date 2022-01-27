@@ -1,6 +1,7 @@
 use clap::{Arg, App};
 use strum_macros::EnumString;
-use std::{io::{BufReader, BufRead, Write}, fs::File, num::ParseIntError, str::FromStr, fmt::Display};
+use chrono::{NaiveTime, Duration};
+use std::{io::{BufReader, BufRead, Write}, fs::File, str::FromStr, ops::{AddAssign, SubAssign}};
 
 #[derive(Debug, EnumString)]
 enum Operation {
@@ -8,36 +9,6 @@ enum Operation {
     Plus,
     #[strum(serialize = "-")]
     Minus
-}
-
-#[derive(Debug)]
-struct TimeStamp {
-    hours: u32,
-    minutes: u32,
-    seconds: u32,
-    miliseconds: u32
-}
-
-impl FromStr for TimeStamp {
-    // 0:00:04,280
-    type Err = ParseIntError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // https://www.dotnetperls.com/substring-rust
-        let hours = s[..1].parse().unwrap();
-        let minutes = s[3..4].parse().unwrap();
-        let seconds = s[6..7].parse().unwrap();
-        let miliseconds = s[s.len()-3..].parse().unwrap();
-
-        Ok(TimeStamp { hours, minutes, seconds, miliseconds })
-    }
-}
-
-impl Display for TimeStamp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // https://stackoverflow.com/q/41820818/10503012
-        write!(f, "{:01}:{:02}:{:02},{:03}", self.hours, self.minutes, self.seconds, self.miliseconds)
-    }
 }
 
 fn main() {
@@ -79,6 +50,7 @@ fn main() {
                                         .takes_value(true))
                                     .get_matches();
     
+    let fmt = "%H:%M:%S,%3f";
     let time_split = " --> ".to_string();
     let path = matches.value_of("file").unwrap();
     let time_shift_seconds = matches.value_of("seconds").unwrap().parse::<u32>().unwrap();
@@ -93,21 +65,21 @@ fn main() {
         let mut split = l.split(&time_split);
         
         if l.contains(&time_split) {
-            let mut first: TimeStamp = TimeStamp::from_str(split.nth(0).unwrap()).unwrap();
-            let mut second: TimeStamp = TimeStamp::from_str(split.nth(0).unwrap()).unwrap();
+            let mut first = NaiveTime::parse_from_str(split.nth(0).unwrap(), &fmt).unwrap();
+            let mut second = NaiveTime::parse_from_str(split.nth(0).unwrap(), &fmt).unwrap();
 
             match add_subtract {
                 Operation::Plus => {
-                    first.seconds += time_shift_seconds;
-                    second.seconds += time_shift_seconds;
+                    first.add_assign(Duration::seconds(time_shift_seconds.into()));
+                    second.add_assign(Duration::seconds(time_shift_seconds.into()));
                 },
                 Operation::Minus => {
-                    first.seconds -= time_shift_seconds;
-                    second.seconds -= time_shift_seconds;
+                    first.sub_assign(Duration::seconds(time_shift_seconds.into()));
+                    second.sub_assign(Duration::seconds(time_shift_seconds.into()));
                 }
             };
 
-            output += &(first.to_string() + &time_split + &second.to_string() + "\n");
+            output += &(first.format("%-H:%M:%S,%3f").to_string() + &time_split + &second.format("%-H:%M:%S,%3f").to_string() + "\n");
         } else {
             output += &l;
             output += "\n";
